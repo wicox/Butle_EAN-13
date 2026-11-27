@@ -128,11 +128,25 @@ export async function scanBarcodeFromPhoto(
     }
   }
 
-  const response = await fetch('/api/scan-barcode', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ imageDataUrl }),
-  });
+  let response: Response;
+  try {
+    response = await fetch('/api/scan-barcode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageDataUrl }),
+    });
+  } catch {
+    throw new Error(
+      'Brak połączenia z serwerem odczytu AI. Na statycznym hostingu (np. GitHub Pages) działa lokalny dekoder — spróbuj ostrzejszego zdjęcia lub wpisz kod ręcznie.'
+    );
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    throw new Error(
+      'Odczyt AI wymaga uruchomionego serwera Node.js (start.sh / start.bat). Na statycznym GitHub Pages użyj lokalnego odczytu ze zdjęcia lub wpisz kod ręcznie.'
+    );
+  }
 
   const payload = (await response.json()) as {
     ean13?: string;

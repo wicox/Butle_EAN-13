@@ -38,6 +38,14 @@ start.bat
 | `npm run start` | Uruchamia skompilowaną wersję produkcyjną na porcie `3000` |
 | `npm run clean` | Usuwa wygenerowane pliki z `dist/` |
 
-## Automatyzacja GitHub (CI)
+## Automatyzacja GitHub (CI i GitHub Pages)
 
-Repozytorium zawiera konfigurację GitHub Actions w `.github/workflows/ci.yml`, która automatycznie weryfikuje instalację zależności, kontrolę typów TypeScript oraz kompilację produkcyjną po każdym wypchnięciu zmian (`push`) lub otwarciu Pull Requesta.
+Repozytorium zawiera dwie konfiguracje GitHub Actions:
+- `.github/workflows/ci.yml` — automatycznie weryfikuje instalację zależności, kontrolę typów TypeScript oraz kompilację produkcyjną po każdym wypchnięciu zmian (`push`) lub otwarciu Pull Requesta.
+- `.github/workflows/pages.yml` — automatycznie buduje i publikuje aplikację na **GitHub Pages**.
+
+Aby włączyć stronę GitHub Pages w repozytorium:
+1. Przejdź na GitHubie do **Settings → Pages**.
+2. W sekcji **Build and deployment → Source** wybierz **GitHub Actions**.
+3. Po kolejnym `push` (lub ręcznym uruchomieniu workflow w zakładce **Actions**) aplikacja będzie dostępna pod adresem `https://<użytkownik>.github.io/<nazwa-repo>/`.
+
