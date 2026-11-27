@@ -1,6 +1,7 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import {
   clampBarcodeWidthCm,
+  clampExportQuantity,
   DEFAULT_BARCODE_WIDTH_CM,
   DEFAULT_PX_PER_CM,
   type AppSettings,
@@ -42,7 +43,12 @@ function getDb() {
 export async function loadAllBottles(): Promise<BottleRecord[]> {
   const db = await getDb();
   const rows = await db.getAll('bottles');
-  return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return rows
+    .map((row) => ({
+      ...row,
+      exportQuantity: clampExportQuantity(row.exportQuantity ?? 1),
+    }))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function saveBottle(record: BottleRecord): Promise<void> {

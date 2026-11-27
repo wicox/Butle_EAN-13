@@ -15,7 +15,12 @@ import {
   WidthType,
 } from 'docx';
 import { saveAs } from 'file-saver';
-import { clampBarcodeWidthCm, formatDimensionsLabel, type BottleRecord } from '../types/bottle';
+import {
+  clampBarcodeWidthCm,
+  clampExportQuantity,
+  formatDimensionsLabel,
+  type BottleRecord,
+} from '../types/bottle';
 import { renderEan13ToPng, validateEan13 } from './ean13';
 
 // Word uses 96 DPI pixels -> 1 cm = 96 / 2.54 px (which docx converts cleanly via 9525 EMUs/px)
@@ -36,8 +41,8 @@ export async function exportSelectedToWord(
   const columns = 3; // 3 columns on A4 (~18.6 cm usable -> ~6.2 cm per cut-out cell)
   const colWidthTwips = Math.round(6.1 * TWIPS_PER_CM);
 
-  // Pre-render all barcode PNGs with exact physical dimensions
-  const renderedItems = await Promise.all(
+  // Pre-render unique barcode PNGs once, then expand according to exportQuantity
+  const uniqueRendered = await Promise.all(
     validBottles.map(async (bottle) => {
       const img = await renderEan13ToPng(bottle.ean13, barWidthCm, { modulePx: 8 });
       const buffer = await img.blob.arrayBuffer();
@@ -48,6 +53,14 @@ export async function exportSelectedToWord(
       };
     })
   );
+
+  const renderedItems: typeof uniqueRendered = [];
+  for (const entry of uniqueRendered) {
+    const qty = clampExportQuantity(entry.bottle.exportQuantity ?? 1);
+    for (let c = 0; c < qty; c++) {
+      renderedItems.push(entry);
+    }
+  }
 
   const cellBorder = {
     style: BorderStyle.DASHED,
@@ -184,7 +197,7 @@ export async function exportSelectedToWord(
             spacing: { before: 0, after: 140 },
             children: [
               new TextRun({
-                text: `Kody kreskowe EAN-13 do wycinania  ·  Szerokość kodu (od pierwszej do ostatniej kreski): ${barWidthCm.toFixed(2)} cm  ·  Pozycji: ${validBottles.length}`,
+                text: `Kody kreskowe EAN-13 do wycinania  ·  Szerokość kodu (od pierwszej do ostatniej kreski): ${barWidthCm.toFixed(2)} cm  ·  Pozycji: ${validBottles.length}  ·  Łącznie kodów: ${renderedItems.length} szt.`,
                 size: 17,
                 color: '475569',
                 font: 'Calibri',

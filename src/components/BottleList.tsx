@@ -9,7 +9,11 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
-import { formatDimensionsLabel, type BottleRecord } from '../types/bottle';
+import {
+  clampExportQuantity,
+  formatDimensionsLabel,
+  type BottleRecord,
+} from '../types/bottle';
 import { validateEan13 } from '../utils/ean13';
 
 type FilterTab = 'all' | 'bottle' | 'can' | 'selected';
@@ -57,7 +61,12 @@ export const BottleList: React.FC<BottleListProps> = ({
     );
   });
 
-  const selectedCount = bottles.filter((b) => b.selected).length;
+  const selectedBottles = bottles.filter((b) => b.selected);
+  const selectedCount = selectedBottles.length;
+  const totalSelectedCopies = selectedBottles.reduce(
+    (sum, b) => sum + clampExportQuantity(b.exportQuantity ?? 1),
+    0
+  );
   const allFilteredSelected =
     filtered.length > 0 && filtered.every((b) => b.selected);
 
@@ -90,7 +99,7 @@ export const BottleList: React.FC<BottleListProps> = ({
             Baza opakowań ({bottles.length})
           </h2>
           <span className="text-xs font-medium text-slate-500 tabular-nums">
-            Do eksportu: {selectedCount}
+            Do eksportu: {selectedCount} ({totalSelectedCopies} szt.)
           </span>
         </div>
 
@@ -237,6 +246,10 @@ export const BottleList: React.FC<BottleListProps> = ({
                       }
                     >
                       {item.ean13 || 'Brak kodu EAN-13'}
+                    </span>
+                    <span className="font-sans text-[11px] text-slate-400">·</span>
+                    <span className="font-sans text-[11px] font-medium text-slate-600">
+                      {clampExportQuantity(item.exportQuantity ?? 1)} szt.
                     </span>
                     {item.ean13 && !eanStatus.valid && (
                       <span className="font-sans text-[11px] text-amber-700">

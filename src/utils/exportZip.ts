@@ -2,6 +2,7 @@ import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import {
   clampBarcodeWidthCm,
+  clampExportQuantity,
   DEFAULT_BARCODE_WIDTH_CM,
   type AppSettings,
   type BottleRecord,
@@ -145,6 +146,9 @@ export async function importDatabaseFromZip(file: File): Promise<{
       photoDataUrl,
       photoFilename: item.photoFilename ?? null,
       selected: Boolean(item.selected),
+      exportQuantity: clampExportQuantity(
+        typeof item.exportQuantity === 'number' ? item.exportQuantity : 1
+      ),
       notes: typeof item.notes === 'string' ? item.notes : '',
       createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString(),
       updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : new Date().toISOString(),

@@ -1,16 +1,23 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
   CheckCircle2,
   ImagePlus,
   Loader2,
+  Minus,
   Plus,
   ScanBarcode,
   Trash2,
   Wand2,
   X,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
-import type { BottleRecord, ContainerType } from '../types/bottle';
+import {
+  clampExportQuantity,
+  type BottleRecord,
+  type ContainerType,
+} from '../types/bottle';
 import { scanBarcodeFromPhoto } from '../utils/barcodeScanner';
 import { autoFixEan13, validateEan13 } from '../utils/ean13';
 
@@ -30,6 +37,17 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [scanning, setScanning] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [photoZoomOpen, setPhotoZoomOpen] = useState(false);
+  const [photoZoomScale, setPhotoZoomScale] = useState(1.5);
+
+  useEffect(() => {
+    if (!photoZoomOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPhotoZoomOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [photoZoomOpen]);
 
   if (!bottle) {
     return (
@@ -161,15 +179,65 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
           </p>
         </div>
 
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100">
-          <input
-            type="checkbox"
-            checked={bottle.selected}
-            onChange={(e) => updateField('selected', e.target.checked)}
-            className="h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-blue-600"
-          />
-          <span>Zaznaczony do Word / PDF</span>
-        </label>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1">
+            <span className="text-xs font-medium text-slate-600 whitespace-nowrap">
+              Ilość szt. do eksportu:
+            </span>
+            <div className="inline-flex items-center rounded-md border border-slate-200 bg-white">
+              <button
+                type="button"
+                onClick={() =>
+                  updateField(
+                    'exportQuantity',
+                    clampExportQuantity((bottle.exportQuantity ?? 1) - 1)
+                  )
+                }
+                disabled={(bottle.exportQuantity ?? 1) <= 1}
+                aria-label="Zmniejsz ilość sztuk"
+                className="cursor-pointer px-1.5 py-1 text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Minus className="h-3 w-3" />
+              </button>
+              <input
+                type="number"
+                min={1}
+                max={999}
+                value={bottle.exportQuantity ?? 1}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  updateField('exportQuantity', clampExportQuantity(val));
+                }}
+                aria-label="Ilość sztuk kodu do eksportu"
+                className="w-11 border-x border-slate-200 py-0.5 text-center font-mono text-xs font-semibold tabular-nums text-slate-900 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  updateField(
+                    'exportQuantity',
+                    clampExportQuantity((bottle.exportQuantity ?? 1) + 1)
+                  )
+                }
+                disabled={(bottle.exportQuantity ?? 1) >= 999}
+                aria-label="Zwiększ ilość sztuk"
+                className="cursor-pointer px-1.5 py-1 text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100">
+            <input
+              type="checkbox"
+              checked={bottle.selected}
+              onChange={(e) => updateField('selected', e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-blue-600"
+            />
+            <span>Zaznaczony do Word / PDF</span>
+          </label>
+        </div>
       </div>
 
       {/* Photo upload / preview / remove */}
@@ -193,17 +261,29 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
         {bottle.photoDataUrl ? (
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 space-y-3">
             <div className="flex flex-col sm:flex-row gap-4 items-center">
-              <div className="relative h-44 w-44 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white">
+              <button
+                type="button"
+                onClick={() => {
+                  setPhotoZoomScale(1.5);
+                  setPhotoZoomOpen(true);
+                }}
+                title="Kliknij, aby powiększyć zdjęcie"
+                className="group relative h-44 w-44 shrink-0 cursor-zoom-in overflow-hidden rounded-lg border border-slate-200 bg-white focus-visible:outline-2 focus-visible:outline-blue-600"
+              >
                 <img
                   src={bottle.photoDataUrl}
                   alt={bottle.name || 'Zdjęcie opakowania'}
-                  className="h-full w-full object-contain"
+                  className="h-full w-full object-contain transition-transform duration-150 group-hover:scale-105"
                 />
-              </div>
+                <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-md bg-slate-900/80 px-2 py-1 text-[11px] font-medium text-white opacity-90 transition-opacity group-hover:opacity-100">
+                  <ZoomIn className="h-3 w-3" />
+                  Powiększ
+                </span>
+              </button>
               <div className="flex-1 space-y-2.5 w-full">
                 <p className="text-xs text-slate-600">
-                  Kliknij przycisk poniżej, aby automatycznie odczytać kod kreskowy ze zdjęcia
-                  i odtworzyć go na nowo w oknie obok.
+                  Kliknij zdjęcie lub „Powiększ zdjęcie”, aby przybliżyć etykietę, albo
+                  odczytaj automatycznie kod kreskowy do okna obok.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -227,6 +307,17 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
                   >
                     <Wand2 className="h-3.5 w-3.5" />
                     Odczyt precyzyjny AI (zakrzywione)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPhotoZoomScale(1.5);
+                      setPhotoZoomOpen(true);
+                    }}
+                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                  >
+                    <ZoomIn className="h-3.5 w-3.5" />
+                    Powiększ zdjęcie
                   </button>
                   <button
                     type="button"
@@ -486,6 +577,135 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
           )}
         </div>
       </div>
+
+      {/* Zoomed Photo Lightbox Modal */}
+      {photoZoomOpen && bottle.photoDataUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/75 p-4"
+          onClick={() => setPhotoZoomOpen(false)}
+        >
+          <div
+            className="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-xl border border-slate-200 bg-white shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-5 py-3">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Powiększony podgląd zdjęcia opakowania
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {bottle.name.trim() || 'Bez nazwy'} · Użyj przybliżenia, aby dokładnie odczytać kod z etykiety
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="inline-flex items-center rounded-lg border border-slate-200 bg-white p-0.5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPhotoZoomScale((s) => Math.max(0.5, Math.round((s - 0.25) * 100) / 100))
+                    }
+                    title="Pomniejsz"
+                    aria-label="Pomniejsz zdjęcie"
+                    className="cursor-pointer rounded-md p-1.5 text-slate-600 hover:bg-slate-100"
+                  >
+                    <ZoomOut className="h-4 w-4" />
+                  </button>
+                  <span className="w-14 text-center font-mono text-xs font-semibold tabular-nums text-slate-800">
+                    {Math.round(photoZoomScale * 100)}%
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPhotoZoomScale((s) => Math.min(4, Math.round((s + 0.25) * 100) / 100))
+                    }
+                    title="Powiększ"
+                    aria-label="Powiększ zdjęcie"
+                    className="cursor-pointer rounded-md p-1.5 text-slate-600 hover:bg-slate-100"
+                  >
+                    <ZoomIn className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {[1, 1.5, 2, 3].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setPhotoZoomScale(preset)}
+                    className={`hidden sm:inline-flex cursor-pointer rounded-md border px-2 py-1 font-mono text-xs tabular-nums ${
+                      Math.abs(photoZoomScale - preset) < 0.05
+                        ? 'border-blue-700 bg-blue-50 text-blue-800 font-semibold'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    {preset * 100}%
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => setPhotoZoomOpen(false)}
+                  aria-label="Zamknij powiększenie"
+                  className="cursor-pointer rounded-lg p-1.5 text-slate-500 hover:bg-slate-200 hover:text-slate-900"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-auto bg-slate-100 p-6">
+              <div className="flex min-h-[380px] min-w-full items-center justify-center">
+                <img
+                  src={bottle.photoDataUrl}
+                  alt={bottle.name || 'Powiększone zdjęcie opakowania'}
+                  style={
+                    photoZoomScale > 1
+                      ? {
+                          width: `${Math.round(photoZoomScale * 520)}px`,
+                          maxWidth: 'none',
+                          height: 'auto',
+                        }
+                      : {
+                          width: `${Math.round(photoZoomScale * 100)}%`,
+                          maxHeight: '65vh',
+                          objectFit: 'contain',
+                        }
+                  }
+                  className="rounded-lg bg-white shadow-sm"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white px-5 py-3">
+              <span className="text-xs text-slate-500">
+                Przewijaj obszar powyżej przy dużym powiększeniu, aby przesuwać zdjęcie.
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={scanning}
+                  onClick={() => handleScanClick(false)}
+                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                >
+                  {scanning ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <ScanBarcode className="h-3.5 w-3.5" />
+                  )}
+                  Odczytaj kod ze zdjęcia
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPhotoZoomOpen(false)}
+                  className="cursor-pointer rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Zamknij
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };

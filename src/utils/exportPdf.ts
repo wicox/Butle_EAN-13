@@ -1,5 +1,10 @@
 import { jsPDF } from 'jspdf';
-import { clampBarcodeWidthCm, formatDimensionsLabel, type BottleRecord } from '../types/bottle';
+import {
+  clampBarcodeWidthCm,
+  clampExportQuantity,
+  formatDimensionsLabel,
+  type BottleRecord,
+} from '../types/bottle';
 import {
   EAN13_BAR_MODULES,
   encodeEan13Modules,
@@ -68,6 +73,24 @@ export async function exportSelectedToPdf(
   const cellH = 42; // ~42 mm tall per cut-out cell
   const rowsPerPage = Math.floor((pageHeightMm - marginTop - 12) / cellH);
 
+  // Precompute header strips and encoded modules once per unique bottle
+  const preparedUnique = validBottles.map((bottle) => {
+    const dimsText = formatDimensionsLabel(bottle.diameterMm, bottle.lengthMm, false);
+    const typeLabel = bottle.containerType === 'can' ? 'Puszka' : 'Butelka';
+    const subLine = bottle.name.trim() ? `${bottle.name.trim()} (${typeLabel})` : typeLabel;
+    const header = renderHeaderStripDataUrl(dimsText, subLine, cellW - 4);
+    const encoded = encodeEan13Modules(bottle.ean13);
+    return { bottle, header, encoded };
+  });
+
+  const expandedItems: typeof preparedUnique = [];
+  for (const entry of preparedUnique) {
+    const qty = clampExportQuantity(entry.bottle.exportQuantity ?? 1);
+    for (let c = 0; c < qty; c++) {
+      expandedItems.push(entry);
+    }
+  }
+
   // Page header rendered via canvas for flawless Polish characters
   const drawPageTitle = () => {
     const titleCanvas = document.createElement('canvas');
@@ -77,10 +100,10 @@ export async function exportSelectedToPdf(
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, titleCanvas.width, titleCanvas.height);
     ctx.fillStyle = '#475569';
-    ctx.font = '500 30px "Plus Jakarta Sans", system-ui, sans-serif';
+    ctx.font = '500 28px "Plus Jakarta Sans", system-ui, sans-serif';
     ctx.textBaseline = 'middle';
     ctx.fillText(
-      `Kody kreskowe EAN-13 do wycinania  ·  Szerokość kodu (od 1. do ostatniej kreski): ${barWidthCm.toFixed(2)} cm  ·  Pozycji: ${validBottles.length}`,
+      `Kody EAN-13 do wycinania  ·  Szerokość: ${barWidthCm.toFixed(2)} cm  ·  Pozycji: ${validBottles.length}  ·  Łącznie: ${expandedItems.length} szt.`,
       0,
       45
     );
@@ -91,7 +114,7 @@ export async function exportSelectedToPdf(
 
   const perPage = cols * rowsPerPage;
 
-  validBottles.forEach((bottle, index) => {
+  expandedItems.forEach(({ header, encoded }, index) => {
     if (index > 0 && index % perPage === 0) {
       doc.addPage();
       drawPageTitle();
@@ -111,16 +134,9 @@ export async function exportSelectedToPdf(
     doc.rect(cellX, cellY, cellW, cellH);
     doc.setLineDashPattern([], 0);
 
-    // Dimensions + bottle label header on top
-    const dimsText = formatDimensionsLabel(bottle.diameterMm, bottle.lengthMm, false);
-    const typeLabel = bottle.containerType === 'can' ? 'Puszka' : 'Butelka';
-    const subLine = bottle.name.trim() ? `${bottle.name.trim()} (${typeLabel})` : typeLabel;
-
-    const header = renderHeaderStripDataUrl(dimsText, subLine, cellW - 4);
     doc.addImage(header.dataUrl, 'PNG', cellX + 2, cellY + 2.2, cellW - 4, header.heightMm);
 
     // Draw vector EAN-13 bars directly in PDF millimeters
-    const encoded = encodeEan13Modules(bottle.ean13);
     const moduleMm = barWidthMm / EAN13_BAR_MODULES;
     const barStartX = cellX + (cellW - barWidthMm) / 2 + 1.2; // Slight offset right to leave room for leading digit
     const barTopY = cellY + 13.5;

@@ -10,6 +10,7 @@ export interface BottleRecord {
   photoDataUrl: string | null;
   photoFilename: string | null;
   selected: boolean;
+  exportQuantity: number;
   notes: string;
   createdAt: string;
   updatedAt: string;
@@ -29,6 +30,11 @@ export function clampBarcodeWidthCm(val: number): number {
   if (!Number.isFinite(val)) return DEFAULT_BARCODE_WIDTH_CM;
   const clamped = Math.min(MAX_BARCODE_WIDTH_CM, Math.max(MIN_BARCODE_WIDTH_CM, val));
   return Math.round(clamped * 100) / 100;
+}
+
+export function clampExportQuantity(val: number): number {
+  if (!Number.isFinite(val)) return 1;
+  return Math.min(999, Math.max(1, Math.floor(val)));
 }
 
 export function formatDimensionsLabel(

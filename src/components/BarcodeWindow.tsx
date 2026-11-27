@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import {
   clampBarcodeWidthCm,
+  clampExportQuantity,
   DEFAULT_PX_PER_CM,
   formatDimensionsLabel,
   MAX_BARCODE_WIDTH_CM,
@@ -142,6 +143,10 @@ export const BarcodeWindow: React.FC<BarcodeWindowProps> = ({
   const selectedValidBottles = allBottles.filter(
     (b) => b.selected && validateEan13(b.ean13).valid
   );
+  const totalExportCopies = selectedValidBottles.reduce(
+    (sum, b) => sum + clampExportQuantity(b.exportQuantity ?? 1),
+    0
+  );
 
   const activeValid = activeBottle ? validateEan13(activeBottle.ean13).valid : false;
 
@@ -212,6 +217,9 @@ export const BarcodeWindow: React.FC<BarcodeWindowProps> = ({
               </span>
               <span className="font-mono tabular-nums">
                 {barcodeWidthCm.toFixed(2)} cm
+                {activeBottle
+                  ? ` · ${clampExportQuantity(activeBottle.exportQuantity ?? 1)} szt.`
+                  : ''}
               </span>
             </div>
 
@@ -345,9 +353,9 @@ export const BarcodeWindow: React.FC<BarcodeWindowProps> = ({
           {/* Export Buttons (Word, PDF, PNG) */}
           <div className="space-y-2.5 border-t border-slate-100 pt-4">
             <div className="flex items-center justify-between text-xs text-slate-600">
-              <span>Zaznaczone poprawne kody do tabeli:</span>
+              <span>Zaznaczone pozycje / łącznie do wycinania:</span>
               <span className="font-semibold text-slate-900 tabular-nums">
-                {selectedValidBottles.length} szt.
+                {selectedValidBottles.length} poz. ({totalExportCopies} szt.)
               </span>
             </div>
 

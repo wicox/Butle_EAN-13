@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
 import {
   clampBarcodeWidthCm,
+  clampExportQuantity,
   DEFAULT_BARCODE_WIDTH_CM,
   DEFAULT_PX_PER_CM,
   type BottleRecord,
@@ -86,6 +87,7 @@ export default function App() {
       photoDataUrl: null,
       photoFilename: null,
       selected: true,
+      exportQuantity: 1,
       notes: '',
       createdAt: now,
       updatedAt: now,
@@ -148,9 +150,12 @@ export default function App() {
   const handleExportWord = async () => {
     try {
       await exportSelectedToWord(bottles, barcodeWidthCm);
+      const totalCopies = bottles
+        .filter((b) => b.selected && b.ean13.length === 13)
+        .reduce((sum, b) => sum + clampExportQuantity(b.exportQuantity ?? 1), 0);
       setNotification({
         type: 'success',
-        text: `Wygenerowano plik Word (.docx) z kodami o szerokości ${barcodeWidthCm.toFixed(2)} cm.`,
+        text: `Wygenerowano plik Word (.docx) — ${totalCopies} szt. kodów o szerokości ${barcodeWidthCm.toFixed(2)} cm.`,
       });
     } catch (err) {
       setNotification({
@@ -163,9 +168,12 @@ export default function App() {
   const handleExportPdf = async () => {
     try {
       await exportSelectedToPdf(bottles, barcodeWidthCm);
+      const totalCopies = bottles
+        .filter((b) => b.selected && b.ean13.length === 13)
+        .reduce((sum, b) => sum + clampExportQuantity(b.exportQuantity ?? 1), 0);
       setNotification({
         type: 'success',
-        text: `Wygenerowano plik PDF z kodami o szerokości ${barcodeWidthCm.toFixed(2)} cm.`,
+        text: `Wygenerowano plik PDF — ${totalCopies} szt. kodów o szerokości ${barcodeWidthCm.toFixed(2)} cm.`,
       });
     } catch (err) {
       setNotification({
