@@ -1,10 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
+  Check,
   CheckCircle2,
   ImagePlus,
   Loader2,
+  Lock,
   Minus,
+  Pencil,
   Plus,
   ScanBarcode,
   Trash2,
@@ -23,6 +26,8 @@ import { autoFixEan13, validateEan13 } from '../utils/ean13';
 
 interface BottleEditorProps {
   bottle: BottleRecord | null;
+  isEditing: boolean;
+  onSetEditing: (editing: boolean) => void;
   onChange: (updated: BottleRecord) => void;
   onAddNew: () => void;
   onNotify: (msg: { type: 'success' | 'error' | 'info'; text: string }) => void;
@@ -30,6 +35,8 @@ interface BottleEditorProps {
 
 export const BottleEditor: React.FC<BottleEditorProps> = ({
   bottle,
+  isEditing,
+  onSetEditing,
   onChange,
   onAddNew,
   onNotify,
@@ -171,19 +178,59 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
     <section className="rounded-xl border border-slate-200 bg-white p-6 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
         <div>
-          <h2 className="text-base font-semibold text-slate-900">
-            Dane butelki / puszki
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold text-slate-900">
+              Dane butelki / puszki
+            </h2>
+            <span className="inline-flex items-center gap-1 text-xs font-medium text-slate-500">
+              <span aria-hidden="true">·</span>
+              {isEditing ? (
+                <span className="text-blue-700">Tryb edycji</span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-slate-500">
+                  <Lock className="h-3 w-3" />
+                  Podgląd (pola zablokowane)
+                </span>
+              )}
+            </span>
+          </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Zdjęcie, wymiary opakowania oraz odczytany kod kreskowy EAN-13
+            {isEditing
+              ? 'Edytuj zdjęcie, wymiary opakowania oraz kod kreskowy EAN-13'
+              : 'Aby zmienić dane, kliknij ikonę ołówka (Edytuj) na liście obok kosza'}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1">
-            <span className="text-xs font-medium text-slate-600 whitespace-nowrap">
-              Ilość szt. do eksportu:
-            </span>
+        <div className="flex flex-wrap items-center gap-2">
+          {isEditing ? (
+            <button
+              type="button"
+              onClick={() => onSetEditing(false)}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 whitespace-nowrap"
+            >
+              <Check className="h-3.5 w-3.5" />
+              Zakończ edycję
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onSetEditing(true)}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 whitespace-nowrap"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Edytuj dane
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Export selection & quantity */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-3.5 py-2.5">
+        <div className="inline-flex items-center gap-2">
+          <span className="text-xs font-medium text-slate-600 whitespace-nowrap">
+            Ilość szt. do eksportu:
+          </span>
+          {isEditing ? (
             <div className="inline-flex items-center rounded-md border border-slate-200 bg-white">
               <button
                 type="button"
@@ -226,18 +273,27 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
                 <Plus className="h-3 w-3" />
               </button>
             </div>
-          </div>
-
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100">
-            <input
-              type="checkbox"
-              checked={bottle.selected}
-              onChange={(e) => updateField('selected', e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-blue-600"
-            />
-            <span>Zaznaczony do Word / PDF</span>
-          </label>
+          ) : (
+            <span className="rounded-md border border-slate-200 bg-slate-100 px-2.5 py-1 font-mono text-xs font-semibold tabular-nums text-slate-700">
+              {bottle.exportQuantity ?? 1} szt.
+            </span>
+          )}
         </div>
+
+        <label
+          className={`inline-flex items-center gap-2 text-xs font-medium ${
+            isEditing ? 'cursor-pointer text-slate-700' : 'cursor-not-allowed text-slate-500'
+          }`}
+        >
+          <input
+            type="checkbox"
+            disabled={!isEditing}
+            checked={bottle.selected}
+            onChange={(e) => updateField('selected', e.target.checked)}
+            className="h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+          />
+          <span>Zaznaczony do Word / PDF</span>
+        </label>
       </div>
 
       {/* Photo upload / preview / remove */}
@@ -246,7 +302,7 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
           <label className="text-xs font-semibold text-slate-700">
             Zdjęcie butelki / puszki z kodem kreskowym
           </label>
-          {bottle.photoDataUrl && (
+          {isEditing && bottle.photoDataUrl && (
             <button
               type="button"
               onClick={handleRemovePhoto}
@@ -282,32 +338,37 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
               </button>
               <div className="flex-1 space-y-2.5 w-full">
                 <p className="text-xs text-slate-600">
-                  Kliknij zdjęcie lub „Powiększ zdjęcie”, aby przybliżyć etykietę, albo
-                  odczytaj automatycznie kod kreskowy do okna obok.
+                  {isEditing
+                    ? 'Kliknij zdjęcie lub „Powiększ zdjęcie”, aby przybliżyć etykietę, albo odczytaj automatycznie kod kreskowy do okna obok.'
+                    : 'Kliknij zdjęcie lub „Powiększ zdjęcie”, aby obejrzeć etykietę w dużym powiększeniu.'}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={scanning}
-                    onClick={() => handleScanClick(false)}
-                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-50"
-                  >
-                    {scanning ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <ScanBarcode className="h-3.5 w-3.5" />
-                    )}
-                    {scanning ? 'Odczytywanie...' : 'Odczytaj kod ze zdjęcia'}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={scanning}
-                    onClick={() => handleScanClick(true)}
-                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
-                  >
-                    <Wand2 className="h-3.5 w-3.5" />
-                    Odczyt precyzyjny AI (zakrzywione)
-                  </button>
+                  {isEditing && (
+                    <>
+                      <button
+                        type="button"
+                        disabled={scanning}
+                        onClick={() => handleScanClick(false)}
+                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                      >
+                        {scanning ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <ScanBarcode className="h-3.5 w-3.5" />
+                        )}
+                        {scanning ? 'Odczytywanie...' : 'Odczytaj kod ze zdjęcia'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={scanning}
+                        onClick={() => handleScanClick(true)}
+                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                      >
+                        <Wand2 className="h-3.5 w-3.5" />
+                        Odczyt precyzyjny AI (zakrzywione)
+                      </button>
+                    </>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
@@ -319,18 +380,20 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
                     <ZoomIn className="h-3.5 w-3.5" />
                     Powiększ zdjęcie
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
-                  >
-                    Zmień zdjęcie
-                  </button>
+                  {isEditing && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                    >
+                      Zmień zdjęcie
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
           </div>
-        ) : (
+        ) : isEditing ? (
           <div
             onDragOver={(e) => {
               e.preventDefault();
@@ -356,6 +419,13 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
             </p>
             <p className="mt-1 text-xs text-slate-500">
               Przeciągnij plik tutaj lub kliknij, aby wybrać z dysku (JPG, PNG, WebP)
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-4 py-7 text-center">
+            <ImagePlus className="h-6 w-6 text-slate-300" />
+            <p className="mt-1.5 text-xs text-slate-500">
+              Brak dodanego zdjęcia dla tego opakowania.
             </p>
           </div>
         )}
@@ -387,12 +457,13 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
               <button
                 key={opt.id}
                 type="button"
+                disabled={!isEditing}
                 onClick={() => updateField('containerType', opt.id)}
-                className={`cursor-pointer rounded-md py-1.5 text-xs font-medium transition-colors ${
+                className={`rounded-md py-1.5 text-xs font-medium transition-colors ${
                   bottle.containerType === opt.id
                     ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
+                    : 'text-slate-500'
+                } ${isEditing ? 'cursor-pointer hover:text-slate-900' : 'cursor-not-allowed opacity-80'}`}
               >
                 {opt.label}
               </button>
@@ -407,10 +478,11 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
           <input
             id="bottle-name"
             type="text"
+            disabled={!isEditing}
             value={bottle.name}
             onChange={(e) => updateField('name', e.target.value)}
-            placeholder="np. Napój gazowany 0.5L lub Butelka PET 1.5L"
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:outline-none"
+            placeholder={isEditing ? 'np. Napój gazowany 0.5L lub Butelka PET 1.5L' : 'Brak nazwy'}
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-700"
           />
         </div>
       </div>
@@ -423,36 +495,42 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
               Wymiary opakowania (drukowane nad kodem w tabeli)
             </h3>
             <p className="text-xs text-slate-500">
-              Dodawaj lub usuwaj pola średnicy i długości w milimetrach
+              {isEditing
+                ? 'Dodawaj lub usuwaj pola średnicy i długości w milimetrach'
+                : 'Zapisane wymiary opakowania'}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {bottle.diameterMm === null && (
-              <button
-                type="button"
-                onClick={() => updateField('diameterMm', 66)}
-                className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
-              >
-                <Plus className="h-3 w-3" />
-                Dodaj średnicę
-              </button>
-            )}
-            {bottle.lengthMm === null && (
-              <button
-                type="button"
-                onClick={() => updateField('lengthMm', 200)}
-                className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
-              >
-                <Plus className="h-3 w-3" />
-                Dodaj długość
-              </button>
-            )}
-          </div>
+          {isEditing && (
+            <div className="flex flex-wrap items-center gap-2">
+              {bottle.diameterMm === null && (
+                <button
+                  type="button"
+                  onClick={() => updateField('diameterMm', 66)}
+                  className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  <Plus className="h-3 w-3" />
+                  Dodaj średnicę
+                </button>
+              )}
+              {bottle.lengthMm === null && (
+                <button
+                  type="button"
+                  onClick={() => updateField('lengthMm', 200)}
+                  className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  <Plus className="h-3 w-3" />
+                  Dodaj długość
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {bottle.diameterMm === null && bottle.lengthMm === null ? (
           <p className="text-xs text-slate-500 py-2">
-            Brak przypisanych wymiarów. Kliknij „Dodaj średnicę” lub „Dodaj długość”, aby wprowadzić wymiary.
+            {isEditing
+              ? 'Brak przypisanych wymiarów. Kliknij „Dodaj średnicę” lub „Dodaj długość”, aby wprowadzić wymiary.'
+              : 'Brak przypisanych wymiarów.'}
           </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -468,6 +546,7 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
                   <input
                     id="dim-diameter"
                     type="number"
+                    disabled={!isEditing}
                     min={1}
                     max={500}
                     step="0.5"
@@ -476,19 +555,21 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
                       const val = parseFloat(e.target.value);
                       updateField('diameterMm', Number.isFinite(val) ? val : 0);
                     }}
-                    className="w-full rounded-md border border-slate-200 px-2.5 py-1.5 font-mono text-sm tabular-nums text-slate-900 focus:border-blue-600 focus:outline-none"
+                    className="w-full rounded-md border border-slate-200 px-2.5 py-1.5 font-mono text-sm tabular-nums text-slate-900 focus:border-blue-600 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-700"
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => updateField('diameterMm', null)}
-                  title="Usuń wymiar średnicy"
-                  aria-label="Usuń wymiar średnicy"
-                  className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-md border border-slate-200 px-2.5 text-xs font-medium text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Usuń
-                </button>
+                {isEditing && (
+                  <button
+                    type="button"
+                    onClick={() => updateField('diameterMm', null)}
+                    title="Usuń wymiar średnicy"
+                    aria-label="Usuń wymiar średnicy"
+                    className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-md border border-slate-200 px-2.5 text-xs font-medium text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    Usuń
+                  </button>
+                )}
               </div>
             )}
 
@@ -504,6 +585,7 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
                   <input
                     id="dim-length"
                     type="number"
+                    disabled={!isEditing}
                     min={1}
                     max={1000}
                     step="0.5"
@@ -512,19 +594,21 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
                       const val = parseFloat(e.target.value);
                       updateField('lengthMm', Number.isFinite(val) ? val : 0);
                     }}
-                    className="w-full rounded-md border border-slate-200 px-2.5 py-1.5 font-mono text-sm tabular-nums text-slate-900 focus:border-blue-600 focus:outline-none"
+                    className="w-full rounded-md border border-slate-200 px-2.5 py-1.5 font-mono text-sm tabular-nums text-slate-900 focus:border-blue-600 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-700"
                   />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => updateField('lengthMm', null)}
-                  title="Usuń wymiar długości"
-                  aria-label="Usuń wymiar długości"
-                  className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-md border border-slate-200 px-2.5 text-xs font-medium text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Usuń
-                </button>
+                {isEditing && (
+                  <button
+                    type="button"
+                    onClick={() => updateField('lengthMm', null)}
+                    title="Usuń wymiar długości"
+                    aria-label="Usuń wymiar długości"
+                    className="inline-flex h-9 cursor-pointer items-center gap-1 rounded-md border border-slate-200 px-2.5 text-xs font-medium text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    Usuń
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -537,7 +621,7 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
           <label htmlFor="ean13-input" className="text-xs font-semibold text-slate-700">
             Kod kreskowy EAN-13 (13 cyfr)
           </label>
-          {bottle.ean13.length >= 12 && !eanValidation.valid && (
+          {isEditing && bottle.ean13.length >= 12 && !eanValidation.valid && (
             <button
               type="button"
               onClick={() => updateField('ean13', autoFixEan13(bottle.ean13))}
@@ -551,14 +635,15 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
         <input
           id="ean13-input"
           type="text"
+          disabled={!isEditing}
           inputMode="numeric"
           maxLength={13}
           value={bottle.ean13}
           onChange={(e) =>
             updateField('ean13', e.target.value.replace(/\D/g, '').slice(0, 13))
           }
-          placeholder="np. 5901234123457"
-          className="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 font-mono text-base tracking-widest tabular-nums text-slate-900 placeholder:tracking-normal placeholder:text-slate-400 focus:border-blue-600 focus:outline-none"
+          placeholder={isEditing ? 'np. 5901234123457' : 'Brak kodu EAN-13'}
+          className="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 font-mono text-base tracking-widest tabular-nums text-slate-900 placeholder:tracking-normal placeholder:text-slate-400 focus:border-blue-600 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-700"
         />
 
         <div className="flex items-center gap-1.5 text-xs">
@@ -681,19 +766,21 @@ export const BottleEditor: React.FC<BottleEditorProps> = ({
                 Przewijaj obszar powyżej przy dużym powiększeniu, aby przesuwać zdjęcie.
               </span>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={scanning}
-                  onClick={() => handleScanClick(false)}
-                  className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-50"
-                >
-                  {scanning ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <ScanBarcode className="h-3.5 w-3.5" />
-                  )}
-                  Odczytaj kod ze zdjęcia
-                </button>
+                {isEditing && (
+                  <button
+                    type="button"
+                    disabled={scanning}
+                    onClick={() => handleScanClick(false)}
+                    className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    {scanning ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <ScanBarcode className="h-3.5 w-3.5" />
+                    )}
+                    Odczytaj kod ze zdjęcia
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setPhotoZoomOpen(false)}

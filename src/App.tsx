@@ -32,6 +32,7 @@ interface NotificationState {
 export default function App() {
   const [bottles, setBottles] = useState<BottleRecord[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
   const [barcodeWidthCm, setBarcodeWidthCm] = useState<number>(DEFAULT_BARCODE_WIDTH_CM);
   const [pxPerCmCalibration, setPxPerCmCalibration] = useState<number>(DEFAULT_PX_PER_CM);
   const [loadingDb, setLoadingDb] = useState<boolean>(true);
@@ -94,8 +95,19 @@ export default function App() {
     };
     setBottles((prev) => [newItem, ...prev]);
     setActiveId(newItem.id);
+    setIsEditing(true);
     setActiveSection('workspace');
     await saveBottle(newItem);
+  };
+
+  const handleSelectForView = (id: string) => {
+    setActiveId(id);
+    setIsEditing(false);
+  };
+
+  const handleSelectForEdit = (id: string) => {
+    setActiveId(id);
+    setIsEditing(true);
   };
 
   const handleUpdateBottle = async (updated: BottleRecord) => {
@@ -108,6 +120,7 @@ export default function App() {
       const next = prev.filter((b) => b.id !== id);
       if (activeId === id) {
         setActiveId(next[0]?.id ?? null);
+        setIsEditing(false);
       }
       return next;
     });
@@ -282,7 +295,9 @@ export default function App() {
               <BottleList
                 bottles={bottles}
                 activeId={activeId}
-                onSelectActive={setActiveId}
+                isEditing={isEditing}
+                onSelectActive={handleSelectForView}
+                onEditItem={handleSelectForEdit}
                 onToggleSelected={handleToggleSelected}
                 onToggleAllSelected={handleToggleAllSelected}
                 onDelete={handleDeleteBottle}
@@ -295,6 +310,8 @@ export default function App() {
             <div className="lg:col-span-5">
               <BottleEditor
                 bottle={activeBottle}
+                isEditing={isEditing}
+                onSetEditing={setIsEditing}
                 onChange={handleUpdateBottle}
                 onAddNew={handleAddNew}
                 onNotify={setNotification}
